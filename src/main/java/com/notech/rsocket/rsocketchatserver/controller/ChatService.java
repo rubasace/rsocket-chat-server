@@ -3,8 +3,11 @@ package com.notech.rsocket.rsocketchatserver.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notech.rsocket.rsocketchatserver.model.Message;
+import com.notech.rsocket.rsocketchatserver.model.Notification;
+import com.notech.rsocket.rsocketchatserver.model.UserData;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
+import io.rsocket.RSocket;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,15 +35,15 @@ public class ChatService extends AbstractRSocket {
                                                                 .cache(5)
                                                                 .onBackpressureBuffer();
 
-    private final DirectProcessor<String> notificationsProcessor = DirectProcessor.create();
-    private final Flux<Payload> notificationsFlux = notificationsProcessor.map(DefaultPayload::create);
+    private final DirectProcessor<Notification> notificationsProcessor = DirectProcessor.create();
+    private final Flux<Payload> notificationsFlux = notificationsProcessor.map(this::toPayload);
 
 
     @Override
     public Flux<Payload> requestChannel(final Publisher<Payload> payloads) {
 
         Flux.from(payloads)
-            .map(this::toMessage)
+            .map(payload -> toObject(payload, Message.class))
             .doOnNext(messagesProcessor::onNext)
             .subscribe();
 
@@ -53,21 +56,18 @@ public class ChatService extends AbstractRSocket {
     }
 
 
-    private Message toMessage(final Payload payload) {
+    private <T> T toObject(final Payload payload, final Class<T> clazz) {
         try {
-            String dataUtf8 = payload.getDataUtf8();
-            Message message = objectMapper.readValue(dataUtf8, Message.class);
-            message.setUser(usersMap.getOrDefault(message.getUser(), "Unknown"));
-            return message;
+            return objectMapper.readValue(payload.getDataUtf8(), clazz);
         } catch (IOException e) {
             e.printStackTrace();
-            return new Message();
+            return null;
         }
     }
 
-    private Payload toPayload(final Message message) {
+    private Payload toPayload(final Object object) {
         try {
-            return DefaultPayload.create(objectMapper.writeValueAsString(message));
+            return DefaultPayload.create(objectMapper.writeValueAsString(object));
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
         }
@@ -76,13 +76,17 @@ public class ChatService extends AbstractRSocket {
     Mono<Void> disconnect(final String userId) {
         return Mono.just(userId)
                    .map(usersMap::remove)
-                   .doOnNext(username -> notificationsProcessor.onNext(username + " disconnected"))
+                   .doOnNext(username -> notificationsProcessor.onNext(new Notification(username + " disconnected")))
                    .subscribeOn(Schedulers.single())
                    .then();
     }
 
-    void connect(final String username, final String userId) {
-        notificationsProcessor.onNext(username + " is now connected");
+    void connect(final String username, final String userId, final RSocket sendingSocket) {
+        sendingSocket.fireAndForget(toPayload(new UserData(userId)))
+                     //                     .subscribeOn(Schedulers.single())
+                     .subscribeOn(Schedulers.single())
+                     .subscribe();
+        notificationsProcessor.onNext(new Notification(username + " is now connected"));
         usersMap.put(userId, username);
     }
 }
