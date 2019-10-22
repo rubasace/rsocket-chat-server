@@ -3,7 +3,7 @@ package com.notech.rsocket.rsocketchatserver.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notech.rsocket.rsocketchatserver.model.Message;
-import com.notech.rsocket.rsocketchatserver.model.Notification;
+import com.notech.rsocket.rsocketchatserver.model.UserList;
 import com.notech.rsocket.rsocketchatserver.model.UserData;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
@@ -20,6 +20,8 @@ import reactor.core.scheduler.Schedulers;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 @Service
@@ -27,15 +29,15 @@ public class ChatService extends AbstractRSocket {
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    private final Map<String, String> usersMap = new HashMap<>();
+    //TODO play with schedulers so no race conditions during demo :)
+    private final LinkedHashMap<String, String> usersMap = new LinkedHashMap<>();
 
     private final DirectProcessor<Message> messagesProcessor = DirectProcessor.create();
     private final Flux<Payload> messagesFlux = messagesProcessor.map(this::toPayload)
                                                                 .cache(5)
                                                                 .onBackpressureBuffer();
 
-    private final DirectProcessor<Notification> notificationsProcessor = DirectProcessor.create();
+    private final DirectProcessor<UserList> notificationsProcessor = DirectProcessor.create();
     private final Flux<Payload> notificationsFlux = notificationsProcessor.map(this::toPayload);
 
 
@@ -43,8 +45,9 @@ public class ChatService extends AbstractRSocket {
     public Flux<Payload> requestChannel(final Publisher<Payload> payloads) {
 
         Flux.from(payloads)
-            .map(payload -> toObject(payload, Message.class))
+            .map(this::toMessage)
             .doOnNext(messagesProcessor::onNext)
+            .doOnNext(System.out::println)
             .subscribe();
 
         return messagesFlux;
@@ -55,6 +58,11 @@ public class ChatService extends AbstractRSocket {
         return notificationsFlux;
     }
 
+    private Message toMessage(final Payload payload) {
+        Message message = toObject(payload, Message.class);
+        message.setUser(usersMap.getOrDefault(message.getUser(), "Unknown"));
+        return message;
+    }
 
     private <T> T toObject(final Payload payload, final Class<T> clazz) {
         try {
@@ -75,10 +83,14 @@ public class ChatService extends AbstractRSocket {
 
     Mono<Void> disconnect(final String userId) {
         return Mono.just(userId)
-                   .map(usersMap::remove)
-                   .doOnNext(username -> notificationsProcessor.onNext(new Notification(username + " disconnected")))
+                   .doOnNext(usersMap::remove)
+                   .doOnNext(username -> notifyUserList())
                    .subscribeOn(Schedulers.single())
                    .then();
+    }
+
+    private void notifyUserList() {
+        notificationsProcessor.onNext(new UserList(new LinkedList<>(usersMap.values())));
     }
 
     void connect(final String username, final String userId, final RSocket sendingSocket) {
@@ -86,7 +98,7 @@ public class ChatService extends AbstractRSocket {
                      //                     .subscribeOn(Schedulers.single())
                      .subscribeOn(Schedulers.single())
                      .subscribe();
-        notificationsProcessor.onNext(new Notification(username + " is now connected"));
         usersMap.put(userId, username);
+        notifyUserList();
     }
 }

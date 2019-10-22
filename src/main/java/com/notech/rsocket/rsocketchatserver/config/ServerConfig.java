@@ -18,7 +18,7 @@ class ServerConfig {
         return RSocketFactory.receive()
 //                             .resume()
 //                             .resumeSessionDuration(Duration.ofMinutes(5))
-                             .frameDecoder(PayloadDecoder.ZERO_COPY)
+//                             .frameDecoder(PayloadDecoder.ZERO_COPY)
                              .acceptor(connectionController)
                              .transport(WebsocketServerTransport.create(RSOCKET_PORT))
                              .start()

@@ -35,7 +35,6 @@ public class ConnectionController implements SocketAcceptor {
 
         System.out.println(username + " Connected: " + userId);
 
-
         sendingSocket.onClose()
                      .onErrorResume(e -> Mono.empty())
                      .then(chatService.disconnect(userId))
