@@ -6,6 +6,7 @@ steps:
     image: maven:3.6.1-jdk-11-slim
     commands:
       - mvn package
+
   - name: bake-stable
     image: plugins/docker
     settings:
@@ -17,16 +18,17 @@ steps:
       tags: stable
     when:
       branch:
-        - release/*
+        - master
+
   - name: bake-beta
-      image: plugins/docker
-      settings:
-        username:
-          from_secret: docker_user
-        password:
-          from_secret: docker_pass
-        repo: rubasace/rsocket-chat-server
-        tags: beta
-      when:
-        branch:
-          - release/*
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: docker_user
+      password:
+        from_secret: docker_pass
+      repo: rubasace/rsocket-chat-server
+      tags: beta
+    when:
+      branch:
+        - release/*
