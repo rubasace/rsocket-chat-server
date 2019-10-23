@@ -1,4 +1,6 @@
+---
 kind: pipeline
+type: docker
 name: default
 
 steps:
@@ -32,3 +34,8 @@ steps:
     when:
       branch:
         - release/*
+
+---
+kind: signature
+hmac: 57c53aef4f2a0f7d1c16ca4bc90ac4e76c2a00be219e61160d8ea105b7fe0109
+
