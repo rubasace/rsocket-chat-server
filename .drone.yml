@@ -1,0 +1,22 @@
+kind: pipeline
+name: default
+
+steps:
+  - name: build
+    image: maven:3.6.1-jdk-11-slim
+    commands:
+      - mvn package
+  - name: bake
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: docker_user
+      password:
+        from_secret: docker_pass
+      repo: registry.nasvigo.com/v2/notech/rsocket-chat-server
+      registry: registry.nasvigo.com/v2
+      tags: stable
+    when:
+      branch:
+        - master
+        - release/*
