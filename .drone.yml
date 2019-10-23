@@ -36,3 +36,8 @@ steps:
         - release/*
 
 
+---
+kind: signature
+hmac: 3c3c2f1de87ac614f98c49baf92a80650138b8a82d02fdc624960e12e3f19481
+
+...
