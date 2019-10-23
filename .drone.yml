@@ -35,7 +35,4 @@ steps:
       branch:
         - release/*
 
----
-kind: signature
-hmac: 2e5d67931b81edc097dc82214730a6e794067308fbe49161f6bda18746e5da76
 
