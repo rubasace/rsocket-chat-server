@@ -13,8 +13,7 @@ steps:
         from_secret: docker_user
       password:
         from_secret: docker_pass
-      repo: registry.nasvigo.com/v2/notech/rsocket-chat-server
-      registry: registry.nasvigo.com/v2
+      repo: rubasace/rsocket-chat-server
       tags: stable
     when:
       branch:
