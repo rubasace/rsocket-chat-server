@@ -34,7 +34,7 @@ public class ChatService extends AbstractRSocket {
 
     private final DirectProcessor<Message> messagesProcessor = DirectProcessor.create();
     private final Flux<Payload> messagesFlux = messagesProcessor.map(this::toPayload)
-                                                                .cache(5)
+                                                                .cache(100)
                                                                 .onBackpressureBuffer();
 
     private final DirectProcessor<UserList> notificationsProcessor = DirectProcessor.create();
