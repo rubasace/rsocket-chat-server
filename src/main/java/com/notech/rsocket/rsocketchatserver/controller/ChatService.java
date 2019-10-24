@@ -34,8 +34,7 @@ public class ChatService extends AbstractRSocket {
 
     private final DirectProcessor<Message> messagesProcessor = DirectProcessor.create();
     private final Flux<Payload> messagesFlux = messagesProcessor.map(this::toPayload)
-                                                                .cache(100)
-                                                                .onBackpressureBuffer();
+                                                                .cache(100);
 
     private final DirectProcessor<UserList> notificationsProcessor = DirectProcessor.create();
     //TODO fix no notifications sent first time connected, until other connection
