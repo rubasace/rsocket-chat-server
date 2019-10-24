@@ -1,12 +1,11 @@
 package com.notech.rsocket.rsocketchatserver.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.notech.rsocket.rsocketchatserver.model.UserData;
+import com.notech.rsocket.rsocketchatserver.model.ConnectionData;
 import io.rsocket.ConnectionSetupPayload;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.SocketAcceptor;
-import io.rsocket.util.DefaultPayload;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import reactor.core.publisher.Mono;
@@ -28,12 +27,11 @@ public class ConnectionController implements SocketAcceptor {
     @Override
     public Mono<RSocket> accept(final ConnectionSetupPayload setup, final RSocket sendingSocket) {
 
-        String username = toObject(setup, UserData.class).getUserId();
+        ConnectionData connectionData = toObject(setup, ConnectionData.class);
         String userId = UUID.randomUUID().toString();
 
-        chatService.connect(username, userId, sendingSocket);
-
-        System.out.println(username + " Connected: " + userId);
+        chatService.connect(connectionData, userId, sendingSocket);
+        System.out.println(connectionData.getUsername() + " Connected: " + userId);
 
         sendingSocket.onClose()
                      .onErrorResume(e -> Mono.empty())

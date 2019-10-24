@@ -2,6 +2,7 @@ package com.notech.rsocket.rsocketchatserver.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.notech.rsocket.rsocketchatserver.model.ConnectionData;
 import com.notech.rsocket.rsocketchatserver.model.Message;
 import com.notech.rsocket.rsocketchatserver.model.UserList;
 import com.notech.rsocket.rsocketchatserver.model.UserData;
@@ -19,10 +20,10 @@ import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class ChatService extends AbstractRSocket {
@@ -30,7 +31,7 @@ public class ChatService extends AbstractRSocket {
     @Autowired
     private ObjectMapper objectMapper;
     //TODO play with schedulers so no race conditions during demo :)
-    private final LinkedHashMap<String, String> usersMap = new LinkedHashMap<>();
+    private final Map<String, ConnectionData> connectionsMap = new HashMap<>();
 
     private final DirectProcessor<Message> messagesProcessor = DirectProcessor.create();
     private final Flux<Payload> messagesFlux = messagesProcessor.map(this::toPayload)
@@ -60,7 +61,8 @@ public class ChatService extends AbstractRSocket {
 
     private Message toMessage(final Payload payload) {
         Message message = toObject(payload, Message.class);
-        message.setUser(usersMap.getOrDefault(message.getUser(), "Unknown"));
+
+        message.setUser(Optional.ofNullable(connectionsMap.get(message.getUser())).map(ConnectionData::getUsername).orElse("Anonymous"));
         return message;
     }
 
@@ -83,22 +85,22 @@ public class ChatService extends AbstractRSocket {
 
     Mono<Void> disconnect(final String userId) {
         return Mono.just(userId)
-                   .doOnNext(usersMap::remove)
+                   .doOnNext(connectionsMap::remove)
                    .doOnNext(username -> notifyUserList())
                    .subscribeOn(Schedulers.single())
                    .then();
     }
 
     private void notifyUserList() {
-        notificationsProcessor.onNext(new UserList(new LinkedList<>(usersMap.values())));
+        notificationsProcessor.onNext(new UserList(new ArrayList<>((connectionsMap.values()))));
     }
 
-    void connect(final String username, final String userId, final RSocket sendingSocket) {
+    void connect(final ConnectionData connectionData, final String userId, final RSocket sendingSocket) {
         sendingSocket.fireAndForget(toPayload(new UserData(userId)))
                      //                     .subscribeOn(Schedulers.single())
                      .subscribeOn(Schedulers.single())
                      .subscribe();
-        usersMap.put(userId, username);
+        connectionsMap.put(userId, connectionData);
         notifyUserList();
     }
 }

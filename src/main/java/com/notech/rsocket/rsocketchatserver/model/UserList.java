@@ -1,23 +1,14 @@
 package com.notech.rsocket.rsocketchatserver.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
 import java.util.List;
 
+@AllArgsConstructor
+@Data
 public class UserList {
 
-    private List<String> usernames;
+    private List<ConnectionData> connections;
 
-    public UserList() {
-    }
-
-    public UserList(final List<String> usernames) {
-        this.usernames = usernames;
-    }
-
-    public List<String> getUsernames() {
-        return usernames;
-    }
-
-    public void setUsernames(final List<String> usernames) {
-        this.usernames = usernames;
-    }
 }
