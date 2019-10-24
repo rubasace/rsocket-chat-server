@@ -4,6 +4,7 @@ import com.notech.rsocket.rsocketchatserver.controller.ConnectionController;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.rsocket.RSocketFactory;
+import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.netty.server.CloseableChannel;
 import io.rsocket.transport.netty.server.WebsocketServerTransport;
 import org.springframework.context.annotation.Bean;
@@ -21,9 +22,9 @@ class ServerConfig {
     CloseableChannel closableChannel(final ConnectionController connectionController) throws CertificateException {
         SelfSignedCertificate certificate = new SelfSignedCertificate();
         return RSocketFactory.receive()
-                             //                             .resume()
-                             //                             .resumeSessionDuration(Duration.ofMinutes(5))
-                             //                             .frameDecoder(PayloadDecoder.ZERO_COPY)
+//                             .resume()
+//                             .resumeSessionDuration(Duration.ofMinutes(5))
+                             .frameDecoder(PayloadDecoder.ZERO_COPY)
                              .acceptor(connectionController)
                              .transport(WebsocketServerTransport.create(HttpServer.create()
                                                                                   .port(RSOCKET_PORT)
