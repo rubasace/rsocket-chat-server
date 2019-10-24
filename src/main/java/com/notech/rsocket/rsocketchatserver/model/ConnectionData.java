@@ -14,7 +14,7 @@ public class ConnectionData {
 
     public static enum DeviceType {
 
-        MOBILE,
+        PHONE,
         TABLET,
         COMPUTER
     }
