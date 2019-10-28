@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notech.rsocket.rsocketchatserver.model.ConnectionData;
 import com.notech.rsocket.rsocketchatserver.model.Message;
-import com.notech.rsocket.rsocketchatserver.model.UserList;
 import com.notech.rsocket.rsocketchatserver.model.UserData;
+import com.notech.rsocket.rsocketchatserver.model.UserList;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
@@ -30,7 +30,6 @@ public class ChatService extends AbstractRSocket {
 
     @Autowired
     private ObjectMapper objectMapper;
-    //TODO play with schedulers so no race conditions during demo :)
     private final Map<String, ConnectionData> connectionsMap = new HashMap<>();
 
     private final DirectProcessor<Message> messagesProcessor = DirectProcessor.create();
@@ -38,7 +37,6 @@ public class ChatService extends AbstractRSocket {
                                                                 .cache(100);
 
     private final DirectProcessor<UserList> notificationsProcessor = DirectProcessor.create();
-    //TODO fix no notifications sent first time connected, until other connection
     private final Flux<Payload> notificationsFlux = notificationsProcessor.map(this::toPayload).cache(1);
 
 
@@ -59,6 +57,24 @@ public class ChatService extends AbstractRSocket {
         return notificationsFlux;
     }
 
+    void connect(final ConnectionData connectionData, final String userId, final RSocket sendingSocket) {
+        Mono.just(connectionData)
+            .doOnNext(data -> connectionsMap.put(userId, connectionData))
+            .doOnNext(data -> notifyUserList())
+            .flatMap(data -> sendingSocket.fireAndForget(toPayload(new UserData(userId))))
+            .subscribeOn(Schedulers.single())
+            .subscribe();
+    }
+
+    Mono<Void> disconnect(final String userId) {
+        return Mono.just(userId)
+                   .doOnNext(connectionsMap::remove)
+                   .doOnNext(username -> notifyUserList())
+                   .subscribeOn(Schedulers.single())
+                   .then();
+    }
+
+
     private Message toMessage(final Payload payload) {
         Message message = toObject(payload, Message.class);
 
@@ -68,7 +84,9 @@ public class ChatService extends AbstractRSocket {
 
     private <T> T toObject(final Payload payload, final Class<T> clazz) {
         try {
-            return objectMapper.readValue(payload.getDataUtf8(), clazz);
+            String dataUtf8 = payload.getDataUtf8();
+            payload.release();
+            return objectMapper.readValue(dataUtf8, clazz);
         } catch (IOException e) {
             e.printStackTrace();
             return null;
@@ -83,24 +101,10 @@ public class ChatService extends AbstractRSocket {
         }
     }
 
-    Mono<Void> disconnect(final String userId) {
-        return Mono.just(userId)
-                   .doOnNext(connectionsMap::remove)
-                   .doOnNext(username -> notifyUserList())
-                   .subscribeOn(Schedulers.single())
-                   .then();
-    }
 
     private void notifyUserList() {
         notificationsProcessor.onNext(new UserList(new ArrayList<>((connectionsMap.values()))));
     }
 
-    void connect(final ConnectionData connectionData, final String userId, final RSocket sendingSocket) {
-        sendingSocket.fireAndForget(toPayload(new UserData(userId)))
-                     //                     .subscribeOn(Schedulers.single())
-                     .subscribeOn(Schedulers.single())
-                     .subscribe();
-        connectionsMap.put(userId, connectionData);
-        notifyUserList();
-    }
+
 }
