@@ -2,6 +2,7 @@ package com.notech.rsocket.rsocketchatserver.config;
 
 import com.notech.rsocket.rsocketchatserver.controller.ConnectionController;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.rsocket.RSocketFactory;
 import io.rsocket.frame.decoder.PayloadDecoder;
@@ -21,6 +22,8 @@ class ServerConfig {
 
     @Bean
     CloseableChannel closableChannel(final ConnectionController connectionController) throws CertificateException, NoSuchAlgorithmException {
+//        SecureRandom random =SecureRandom.getInstanceStrong();
+//        SelfSignedCertificate certificate = new SelfSignedCertificate("nasvigo.duckdns.org", random, 1024);
         SelfSignedCertificate certificate = new SelfSignedCertificate();
         return RSocketFactory.receive()
                              //                             .resume()
@@ -31,8 +34,7 @@ class ServerConfig {
                                                                                   .port(RSOCKET_PORT)
                                                                                   .secure(sslContextSpec -> sslContextSpec.sslContext(
                                                                                           SslContextBuilder.forServer(certificate.certificate(), certificate.privateKey())
-//                                                                                                           .trustManager(InsecureTrustManagerFactory.INSTANCE)
-                                                                                  ))))
+                                                                                                           .trustManager(InsecureTrustManagerFactory.INSTANCE)))))
 
                              .start()
                              .block();
